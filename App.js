@@ -44,7 +44,7 @@ const renderLines = (numberOfLines, onPress) => {
     return (
 
         <G
-          onPress={onPress(i, y)}
+          onPress={onPress(i, angle - 30)}
         >
           <Circle key={i} r="7" fill="#2D2D44" cx={x} cy={y} />
           <Text fontWeight="bold" fill="#FFAF20" fontSize="10" textAnchor="middle" x={x} y={y + 3.5}>{i === 0 ? 0 : linesSize -= 1}</Text>
@@ -59,47 +59,45 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      pan: new Animated.ValueXY(),
+      pan: new Animated.Value(0),
       nums: []
     };
 
     this.state.panResponder = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (a, {dx, dy}) => {
-          this.state.pan.setValue({x: dx, y: dy});
+          this.state.pan.setValue(-dx);
 
       },
-      onPanResponderRelease: (a, gestureState) => {
-        console.log('onRelease', gestureState);
+      onPanResponderRelease: () => {
         Animated.spring(
           this.state.pan, // Auto-multiplexed
-          { toValue: { x: 0, y: 0 } }, // Back to zero
+          { toValue: 0}, // Back to zero
         ).start();
       },
     });
 
-    this.rotate = this.state.pan.x.interpolate({
-      inputRange: [0, 500],
-      outputRange: ['0deg', '-45deg']
+    this.rotate = this.state.pan.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg']
     })
   }
 
-  rotatePhone = (number, y) => () => {
-    
+  rotatePhone = (number, angle) => () => {
+    console.log('mffffAngle', angle);
     const num = number === 0 ? 0 : (10 - number);
-    const xy = xyrad(50, 50, 120, 38)
-
-    console.log('xyyyy', xy);
+    const x = (360 - angle) + 45;
+    const value = ((x/360) * 100) / 100;
 
      Animated.timing(this.state.pan, {
-      toValue: {x: -(xy.x), y: 0},
+      toValue: value,
       duration: 5000
     }).start(() =>  Animated.timing(this.state.pan, {
-      toValue: {x: 0, y: 0},
+      toValue: 0,
       duration: 100
     }).start());
 
-    this.setState({nums: [...this.state.nums, num]}, () => console.log('state', this.state.nums, y));
+    this.setState({nums: [...this.state.nums, num]}, () => console.log('state', this.state.nums));
   }
 
 
