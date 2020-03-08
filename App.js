@@ -7,6 +7,7 @@ import {
   StyleSheet,
   PanResponder,
   Animated,
+  Easing,
 } from 'react-native';
 
 import Phone from './src/components/Phone';
@@ -41,21 +42,26 @@ class App extends Component {
   }
 
   rotatePhone = (number, angle) => () => {
+
+    // calculate value
     const num = number === 0 ? 0 : (10 - number);
     const x = (360 - angle) + 45;
-    const value = ((x / 360) * 100) / 100;
+    const value = x / 360;
+
+    // calculate duration
+    const duration = num === 0 ? 1500 : 500 + (100 * num);
 
     Animated.timing(this.state.pan, {
-      toValue: value,
-      duration: 500
+      toValue: value, 
+      duration
     }).start(() => Animated.timing(this.state.pan, {
+      duration:100,
       toValue: 0,
-      duration: 100
     }).start());
 
     this.setState({ phoneNumber: this.state.phoneNumber + num });
   }
-
+  
   render() {
     return (
       <>
