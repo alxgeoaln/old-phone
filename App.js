@@ -2,134 +2,120 @@
 
 import React, { Component } from 'react';
 import {
-  StyleSheet,
   View,
   StatusBar,
-  Dimensions,
+  StyleSheet,
   PanResponder,
   Animated,
-  Text as text
+  Linking
 } from 'react-native';
 
-import Svg, {
-  Circle,
-  Text,
-  Image,
-  G
-} from 'react-native-svg';
-
-
-const screen_width = Dimensions.get('window').width;
-const halfScreen = screen_width / 2 + 100;
-const radius = halfScreen / 2;
-
-function xyrad(cx, cy, angle, r) {
-  const rad = angle * (Math.PI / 180);
-
-  const x = cx + r * Math.cos(rad);
-  const y = cy + r * Math.sin(rad);
-
-  return { rad, x, y };
-}
-
-const renderLines = (numberOfLines, onPress) => {
-  const lines = new Array(numberOfLines).fill(0);
-  let linesSize = lines.length;
-  let angle = 90;
-
-  return lines.map((line, i) => {
-    const { x, y } = xyrad(50, 50, angle, 38);
-    angle += 30;
-
-    return (
-
-        <G
-          onPress={onPress(i, y)}
-        >
-          <Circle key={i} r="7" fill="#2D2D44" cx={x} cy={y} />
-          <Text fontWeight="bold" fill="#FFAF20" fontSize="10" textAnchor="middle" x={x} y={y + 3.5}>{i === 0 ? 0 : linesSize -= 1}</Text>
-        </G>
-
-    );
-  });
-
-};
+import Phone from './src/components/Phone';
+import PhoneNumber from './src/components/PhoneNumber';
 
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      pan: new Animated.ValueXY(),
-      nums: []
+      phoneNumber: ''
     };
+
+    this.pan = new Animated.Value(0.01);
 
     this.state.panResponder = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (a, {dx, dy}) => {
-          this.state.pan.setValue({x: dx, y: dy});
+      onPanResponderMove: (a, { dx, dy }) => {
+        this.pan.setValue(-dx);
 
       },
-      onPanResponderRelease: (a, gestureState) => {
-        console.log('onRelease', gestureState);
+      onPanResponderRelease: () => {
         Animated.spring(
-          this.state.pan, // Auto-multiplexed
-          { toValue: { x: 0, y: 0 } }, // Back to zero
+          this.pan, // Auto-multiplexed
+          { toValue: 0.01 }, // Back to zero
         ).start();
       },
     });
 
-    this.rotate = this.state.pan.x.interpolate({
-      inputRange: [0, 500],
-      outputRange: ['0deg', '-45deg']
+    this.rotate = this.pan.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg']
     })
+
+    this.opacity = new Animated.Value(0.01);
+
+    this.opacity.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0, 0.5, 1]
+    });
   }
 
-  rotatePhone = (number, y) => () => {
+  shouldComponentUpdate(nextProps, nextState) {
+    if (nextState.phoneNumber.length > 0) {
+      Animated.spring(
+        this.opacity,
+        {
+          toValue: 1,
+          friction: 1,
+        }
+      ).start();
+    };
+
+    return true;
+  }
+
+  eraseNumber = () => {
+    this.setState({ phoneNumber: '' });
+    Animated.spring(
+      this.opacity,
+      {
+        friction:2,
+        toValue: 0
+      }
+    ).start()
     
+  }
+
+  rotatePhone = (number, angle) => () => {
+
+    // calculate value
     const num = number === 0 ? 0 : (10 - number);
-    const xy = xyrad(50, 50, 120, 38)
+    const x = (360 - angle) + 45;
+    const value = x / 360;
 
-    console.log('xyyyy', xy);
+    // calculate duration
+    const duration = num === 0 ? 1500 : 500 + (100 * num);
 
-     Animated.timing(this.state.pan, {
-      toValue: {x: -(xy.x), y: 0},
-      duration: 5000
-    }).start(() =>  Animated.timing(this.state.pan, {
-      toValue: {x: 0, y: 0},
-      duration: 100
+    Animated.timing(this.pan, {
+      toValue: value,
+      duration,
+    }).start(() => Animated.timing(this.pan, {
+      duration: 100,
+      toValue: 0.01,
     }).start());
 
-    this.setState({nums: [...this.state.nums, num]}, () => console.log('state', this.state.nums, y));
+    this.setState({ phoneNumber: this.state.phoneNumber + num });
   }
 
+  ring = () => {
+    Linking.openURL(`tel:${this.state.phoneNumber}`);
+  }
 
   render() {
-    // Tint coords
-    const { x, y } = xyrad(50, 50, 45, 38);
-
     return (
       <>
         <StatusBar barStyle="dark-content" />
         <View style={styles.container}>
-          <Animated.View
-            {...this.state.panResponder.panHandlers}
-            style={{
-              width: screen_width - 15,
-              height: screen_width - 15,
-              borderRadius: screen_width - 15 / 2,
-              backgroundColor: "#1E1E2C",
-              transform: [{rotate: this.rotate}]
-            }}>
-            <Svg height="100%" width="100%" viewBox="0 0 100 100">
-              {renderLines(10, this.rotatePhone)}
-            </Svg>
-          </Animated.View>
-          <Svg style={{position: 'absolute'}} height="100%" width="100%" viewBox="0 0 100 100">
-          <Image
-              href={require('./assets/tint.png')}
-              width="10px"
-              height="10px" x={x} y={y} />
-          </Svg>
+          <Phone
+            eraseNumber={this.eraseNumber}
+            panResponder={this.state.panResponder}
+            rotatePhone={this.rotatePhone}
+            rotate={this.rotate}
+            ring={this.ring}
+            buttonOpacity={this.opacity}
+          />
+          <PhoneNumber
+            phoneNumber={this.state.phoneNumber}
+          />
         </View>
       </>
     );
