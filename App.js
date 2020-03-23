@@ -7,7 +7,7 @@ import {
   StyleSheet,
   PanResponder,
   Animated,
-  Easing,
+  Linking
 } from 'react-native';
 
 import Phone from './src/components/Phone';
@@ -17,28 +17,62 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      pan: new Animated.Value(0),
       phoneNumber: ''
     };
+
+    this.pan = new Animated.Value(0.01);
 
     this.state.panResponder = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (a, { dx, dy }) => {
-        this.state.pan.setValue(-dx);
+        this.pan.setValue(-dx);
 
       },
       onPanResponderRelease: () => {
         Animated.spring(
-          this.state.pan, // Auto-multiplexed
-          { toValue: 0 }, // Back to zero
+          this.pan, // Auto-multiplexed
+          { toValue: 0.01 }, // Back to zero
         ).start();
       },
     });
 
-    this.rotate = this.state.pan.interpolate({
+    this.rotate = this.pan.interpolate({
       inputRange: [0, 1],
       outputRange: ['0deg', '360deg']
     })
+
+    this.opacity = new Animated.Value(0.01);
+
+    this.opacity.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0, 0.5, 1]
+    });
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    if (nextState.phoneNumber.length > 0) {
+      Animated.spring(
+        this.opacity,
+        {
+          toValue: 1,
+          friction: 1,
+        }
+      ).start();
+    };
+
+    return true;
+  }
+
+  eraseNumber = () => {
+    this.setState({ phoneNumber: '' });
+    Animated.spring(
+      this.opacity,
+      {
+        friction:2,
+        toValue: 0
+      }
+    ).start()
+    
   }
 
   rotatePhone = (number, angle) => () => {
@@ -51,26 +85,33 @@ class App extends Component {
     // calculate duration
     const duration = num === 0 ? 1500 : 500 + (100 * num);
 
-    Animated.timing(this.state.pan, {
-      toValue: value, 
-      duration
-    }).start(() => Animated.timing(this.state.pan, {
-      duration:100,
-      toValue: 0,
+    Animated.timing(this.pan, {
+      toValue: value,
+      duration,
+    }).start(() => Animated.timing(this.pan, {
+      duration: 100,
+      toValue: 0.01,
     }).start());
 
     this.setState({ phoneNumber: this.state.phoneNumber + num });
   }
-  
+
+  ring = () => {
+    Linking.openURL(`tel:${this.state.phoneNumber}`);
+  }
+
   render() {
     return (
       <>
         <StatusBar barStyle="dark-content" />
         <View style={styles.container}>
           <Phone
+            eraseNumber={this.eraseNumber}
             panResponder={this.state.panResponder}
             rotatePhone={this.rotatePhone}
             rotate={this.rotate}
+            ring={this.ring}
+            buttonOpacity={this.opacity}
           />
           <PhoneNumber
             phoneNumber={this.state.phoneNumber}
